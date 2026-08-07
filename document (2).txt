@@ -1,0 +1,76 @@
+// HACYBERGLOBALTECH - FINAL CLOUD BACKEND - Telegram + Email + Sheets
+// DEPLOY THIS OVER YOUR CURRENT CODE
+
+var SHEET_NAME = "Drivers";
+var ADMIN_SHEET = "Admins";
+var BOT_TOKEN = "8737167779:AAE2WWVpZcQP-wJvi1mvXFi-EP1C7zpe0WE";
+var CHAT_ID = "5642832782";
+
+function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
+    if(sheet.getLastRow()==0) sheet.appendRow(["Date","Name","Email","Phone","Platform","Message","Status"]);
+    var adminSheet = ss.getSheetByName(ADMIN_SHEET) || ss.insertSheet(ADMIN_SHEET);
+    if(adminSheet.getLastRow()==0) adminSheet.appendRow(["Date","Admin Email","Password"]);
+
+    var data = JSON.parse(e.postData.contents);
+    
+    if(data.type == "admin_signup"){
+      adminSheet.appendRow([new Date(), data.adminEmail, data.password]);
+      // Telegram
+      sendTelegram("🔐 *New Admin Signup*\n*Email:* "+data.adminEmail+"\n*Portal:* HGT Approved");
+      // Email to admin
+      try{MailApp.sendEmail({to:data.adminEmail,subject:"✅ Admin Registered - HGT APPROVED",htmlBody:"<h2>HGT Admin Approved ✅</h2><p>Admin: "+data.adminEmail+"</p><p>Portal: https://hacyber-global.github.io/hacyberglobal.dgdns.org/</p>"});}catch(err){}
+      return json({status:"admin_ok"});
+    }
+    
+    if(data.type == "driver_submit"){
+      sheet.appendRow([new Date(), data.name, data.email, data.phone, data.platform, data.message, "PENDING"]);
+      
+      // Telegram to you
+      var tgMsg = "🚨 *New Lead*\n*Name:* "+(data.name||"N/A")+"\n*Email:* "+(data.email||"N/A")+"\n*Phone:* "+(data.phone||"N/A")+"\n*Platform:* "+(data.platform||"N/A")+"\n*Details:* "+(data.message||"N/A");
+      sendTelegram(tgMsg);
+      
+      // Email to admin (last admin)
+      var admins = adminSheet.getRange("B2:B").getValues().flat().filter(String);
+      var adminEmail = admins.length ? admins[admins.length-1] : "support@hacyberglobal.dpdns.org";
+      try{
+        MailApp.sendEmail({to:adminEmail,subject:"🚨 New Driver: "+data.name,htmlBody:"<h3>New Driver</h3><p><b>Name:</b> "+data.name+"<br><b>Email:</b> "+data.email+"<br><b>Phone:</b> "+data.phone+"<br><b>Platform:</b> "+data.platform+"<br><b>Msg:</b> "+data.message+"</p>"});
+        MailApp.sendEmail({to:data.email,subject:"✅ Received - HGT APPROVED",htmlBody:"<div style='max-width:600px;margin:0 auto;font-family:Arial;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden'><div style='background:linear-gradient(135deg,#0f172a,#1e3a8a,#0ea5e9);padding:24px;color:white'><h2>HACYBERGLOBALTECH</h2><span style='background:#22c55e;padding:6px 12px;border-radius:20px;font-size:12px'>✓ APPROVED</span></div><div style='padding:24px'><h3>Request Received ✅</h3><p>Dear "+data.name+", we will approve within 2 hours. Ref: HGT-"+Math.floor(Math.random()*900000)+"</p></div></div>"});
+      }catch(err){}
+      return json({status:"driver_ok"});
+    }
+    
+    if(data.type == "get_drivers"){
+      var rows = sheet.getDataRange().getValues();
+      rows.shift();
+      return json(rows);
+    }
+    
+    if(data.type == "approve_driver"){
+      var rows = sheet.getDataRange().getValues();
+      for(var i=1;i<rows.length;i++){
+        if(rows[i][2]==data.email){
+          sheet.getRange(i+1,7).setValue("APPROVED");
+          try{
+            MailApp.sendEmail({to:data.email,subject:"✅ APPROVED - HACYBERGLOBALTECH",htmlBody:"<div style='max-width:600px;margin:0 auto;font-family:Arial;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden'><div style='background:linear-gradient(135deg,#0f172a,#1e3a8a,#0ea5e9);padding:24px;color:white'><h2>HACYBERGLOBALTECH</h2><span style='background:#22c55e;padding:6px 12px;border-radius:20px'>✓ APPROVED</span></div><div style='padding:24px'><h3>Approved ✅</h3><p>Your request APPROVED. Portal: https://hacyberglobal.dpdns.org Ref: HGT-APPROVED-2026</p></div></div>"});
+          }catch(err){}
+          sendTelegram("✅ *Approved*\n*Email:* "+data.email+"\nApproved email sent!");
+        }
+      }
+      return json({status:"approved_sent"});
+    }
+    
+  } catch(err){ return json({error:err.toString()}); }
+}
+
+function sendTelegram(text){
+  try{
+    var url = "https://api.telegram.org/bot"+BOT_TOKEN+"/sendMessage";
+    UrlFetchApp.fetch(url,{method:"post",contentType:"application/json",payload:JSON.stringify({chat_id:CHAT_ID,text:text,parse_mode:"Markdown"})});
+  }catch(e){}
+}
+
+function json(obj){ return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
+function doGet(e){ return doPost({postData:{contents: JSON.stringify({type:e.parameter.type||"get_drivers",email:e.parameter.email||""})}}); }
