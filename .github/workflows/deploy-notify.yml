@@ -1,0 +1,28 @@
+# Go to your folder first: cd Downloads/HACYBERGLOBAL-FINAL-COMBINED-...
+
+git init
+git branch -M main
+git remote add origin https://github.com/hacyber-global/hacyberglobal.dgdns.org-.git
+git remote set-url origin https://github.com/hacyber-global/hacyberglobal.dgdns.org-.git
+
+# Clean wrong files
+git rm -r --cached . 2>/dev/null; rm -rf .git
+
+# Re-init clean
+git init
+git branch -M main
+git remote add origin https://github.com/hacyber-global/hacyberglobal.dgdns.org-.git
+
+# Add all
+git add index.html admin.html logo.png README.md vercel.json wrangler.toml package.json _headers _redirects
+
+# Add new headers
+git add SUPPORT_EMAIL_APPROVED_HEADER.html GIT_NOTIFICATION_HEADER.html GIT_NOTIFICATION_HEADER.txt 2>/dev/null || true
+
+# Add workflow folder
+mkdir -p .github/workflows
+git add .github/workflows/deploy-notify.yml 2>/dev/null || true
+
+# Commit + Force Push = Deletes wrong files, uploads clean
+git commit -m "✅ FINAL CLEAN: APPROVED header + git notification + v3 portal - hacyberglobal.dpdns.org live"
+git push -u origin main --force
